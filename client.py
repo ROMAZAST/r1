@@ -4,17 +4,19 @@ import requests
 import threading
 import time
 from datetime import datetime
-from ultralytics import YOLO  # переконайся, що встановлено ultralytics
+from ultralytics import YOLO
 
 # Глобальні змінні
 log_lines = []
 search_query = ""
 last_sent_time = 0
 send_interval = 3.0  # секунди
+last_plate_log_times = {}
 
-# Завантаження моделі YOLO
-model = YOLO("best_downloaded.pt")
-
+model = YOLO("best_2.pt")
+cap = cv2.VideoCapture(0)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
 def log_event(msg: str):
     global log_lines
     timestamp = datetime.now().strftime("%H:%M:%S")
@@ -33,7 +35,7 @@ def show_log_window():
     cv2.putText(img, f"Search: {search_query}", (10, 190), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (100, 100, 100), 1, cv2.LINE_AA)
     cv2.imshow("Event Log", img)
 
-def send_image_to_server(image, server_url="http://localhost:5000/upload"):
+def send_image_to_server(image, server_url="http://192.168.0.104:5000/upload"):
     try:
         _, img_encoded = cv2.imencode('.jpg', image)
         files = {'image': ('plate.jpg', img_encoded.tobytes(), 'image/jpeg')}
@@ -45,7 +47,11 @@ def send_image_to_server(image, server_url="http://localhost:5000/upload"):
                     plate = item.get("plate", "None")
                     conf = item.get("confidence", 0)
                     if conf >= 50:
-                        log_event(f"Plate: {plate} was detected, Confidence: {conf:.2f}%")
+                        now = time.time()
+                        last_time = last_plate_log_times.get(plate, 0)
+                        if now - last_time >= 10:
+                            log_event(f"Plate {plate} was detected, confidence: {conf:.2f}%")
+                            last_plate_log_times[plate] = now
         else:
             log_event(f"❌ Server error {response.status_code}: {response.text}")
     except Exception as e:
@@ -57,9 +63,6 @@ def start_upload_thread(plate_image):
 
 def main():
     global search_query, last_sent_time
-    cap = cv2.VideoCapture(0)
-    cv2.namedWindow("Live Feed")
-    cv2.namedWindow("Event Log")
 
     while True:
         ret, frame = cap.read()
@@ -83,7 +86,6 @@ def main():
                 roi = frame[y1:y2, x1:x2]
                 found_plate = True
 
-                # Надсилаємо лише перший знайдений номерний знак кожну секунду
                 if current_time - last_sent_time >= send_interval:
                     start_upload_thread(roi.copy())
                     last_sent_time = current_time
@@ -92,7 +94,7 @@ def main():
             if found_plate:
                 break
 
-        cv2.imshow("Live Feed", frame)
+        #cv2.imshow("Live Feed", frame)
         show_log_window()
 
         key = cv2.waitKey(1) & 0xFF
@@ -108,3 +110,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
