@@ -4,8 +4,8 @@ import cv2
 cap = cv2.VideoCapture(0, cv2.CAP_V4L2)  # Для Linux, наприклад Raspberry Pi
 
 # Налаштовуємо роздільну здатність (менша = менше затримка)
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 480)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 320)
 cap.set(cv2.CAP_PROP_FPS, 30)  # Можна зменшити до 25 або 15
 
 # Виключаємо кешування кадрів (важливо!)
